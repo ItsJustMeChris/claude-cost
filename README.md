@@ -1,15 +1,39 @@
 # claude-cost
 
-To install dependencies:
+Beautiful TUI dashboard for Claude Code usage analytics.
+
+## Install
 
 ```bash
-bun install
+npm install -g claude-cost
+# or
+bun install -g claude-cost
 ```
 
-To run:
+## Usage
 
 ```bash
-bun run index.ts
+# Run the interactive TUI dashboard
+claude-cost
+
+# Or run directly without installing
+npx claude-cost
+bunx claude-cost
+
+# Output stats as JSON (for scripts)
+claude-cost --json
 ```
 
-This project was created using `bun init` in bun v1.3.5. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+## Keyboard Controls
+
+| Key | Action |
+|-----|--------|
+| `↑/↓` | Scroll through lists |
+| `Tab` | Switch between views |
+| `1/2/3/4` | Filter by time (today/week/month/all) |
+| `r` | Refresh data |
+| `q` | Quit |
+
+## Data Source
+
+Reads usage data from `~/.claude/projects/*/*.jsonl`

@@ -1,0 +1,17 @@
+# Source files (not needed, dist is bundled)
+src/
+build.ts
+tsconfig.json
+
+# Development files
+.git/
+.gitignore
+.claude/
+*.log
+.DS_Store
+
+# Documentation (optional, can remove if you want these included)
+CLAUDE.md
+
+# Config
+bun.lock
