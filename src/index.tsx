@@ -47,7 +47,7 @@ if (!isTTY || jsonMode) {
       stats.totalTokens.cacheCreationTokens + stats.totalTokens.cacheReadTokens
     ),
     sessions: stats.sessions.length,
-    messages: stats.entries.length,
+    messages: stats.messageCount,
     breakdown: Object.fromEntries(
       Object.entries(stats.byModel).map(([model, data]) => [
         data.displayName,

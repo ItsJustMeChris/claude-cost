@@ -1,7 +1,23 @@
 import { homedir } from "os";
 import { join } from "path";
-import { readdirSync, existsSync, readFileSync } from "fs";
+import { readdirSync, existsSync, readFileSync, statSync } from "fs";
 import { calculateCost, getModelDisplayName } from "./pricing";
+
+// File-level cache to avoid re-parsing unchanged files
+interface FileCache {
+  mtime: number;
+  entries: UsageEntry[];
+}
+const fileCache = new Map<string, FileCache>();
+
+// Computed stats cache
+interface StatsCache {
+  timestamp: number;
+  stats: UsageStats;
+}
+let allEntriesCache: { mtime: number; entries: UsageEntry[] } | null = null;
+const statsCache = new Map<string, StatsCache>();
+const STATS_CACHE_TTL = 4000; // 4 seconds (refresh is 5s)
 
 export interface TokenUsage {
   inputTokens: number;
@@ -48,7 +64,7 @@ export interface HourlySummary {
 }
 
 export interface UsageStats {
-  entries: UsageEntry[];
+  messageCount: number; // Changed from entries[] to just count - prevents memory leak
   sessions: SessionSummary[];
   daily: DailySummary[];
   hourly: HourlySummary[];
@@ -61,9 +77,17 @@ const CLAUDE_DIR = join(homedir(), ".claude");
 const PROJECTS_DIR = join(CLAUDE_DIR, "projects");
 
 function parseJsonlFile(filePath: string): UsageEntry[] {
-  const entries: UsageEntry[] = [];
-
   try {
+    // Check cache first - use mtime to detect changes
+    const stat = statSync(filePath);
+    const mtime = stat.mtimeMs;
+    const cached = fileCache.get(filePath);
+
+    if (cached && cached.mtime === mtime) {
+      return cached.entries;
+    }
+
+    const entries: UsageEntry[] = [];
     const content = readFileSync(filePath, "utf-8");
     const lines = content.split("\n").filter(Boolean);
 
@@ -116,11 +140,15 @@ function parseJsonlFile(filePath: string): UsageEntry[] {
         // Skip malformed lines
       }
     }
-  } catch {
-    // Skip unreadable files
-  }
 
-  return entries;
+    // Cache the result
+    fileCache.set(filePath, { mtime, entries });
+    return entries;
+  } catch {
+    // File doesn't exist or can't be read - remove from cache
+    fileCache.delete(filePath);
+    return [];
+  }
 }
 
 export function getAllJsonlFiles(): string[] {
@@ -152,14 +180,53 @@ export function getAllJsonlFiles(): string[] {
   return files;
 }
 
+// Get max mtime from all files to detect any changes
+function getMaxMtime(files: string[]): number {
+  let maxMtime = 0;
+  for (const file of files) {
+    try {
+      const stat = statSync(file);
+      if (stat.mtimeMs > maxMtime) {
+        maxMtime = stat.mtimeMs;
+      }
+    } catch {
+      // Ignore missing files
+    }
+  }
+  return maxMtime;
+}
+
 export function parseAllUsage(since?: Date, until?: Date): UsageStats {
+  const now = Date.now();
+
+  // Create cache key based on date range
+  const cacheKey = `${since?.getTime() ?? "all"}-${until?.getTime() ?? "all"}`;
+
+  // Check stats cache first
+  const cached = statsCache.get(cacheKey);
+  if (cached && (now - cached.timestamp) < STATS_CACHE_TTL) {
+    return cached.stats;
+  }
+
   const files = getAllJsonlFiles();
+
+  // Check if any files have changed since last cache
+  const maxMtime = getMaxMtime(files);
+  if (cached && allEntriesCache && allEntriesCache.mtime >= maxMtime) {
+    // Files haven't changed, but cache expired - refresh timestamp and return
+    statsCache.set(cacheKey, { timestamp: now, stats: cached.stats });
+    return cached.stats;
+  }
+
   const allEntries: UsageEntry[] = [];
 
   for (const file of files) {
     const entries = parseJsonlFile(file);
     allEntries.push(...entries);
   }
+
+  // Update the all-entries cache mtime
+  allEntriesCache = { mtime: maxMtime, entries: allEntries };
 
   // Filter by date range if specified
   let filtered = allEntries;
@@ -188,7 +255,12 @@ export function parseAllUsage(since?: Date, until?: Date): UsageStats {
   // Re-sort by timestamp ascending
   deduplicated.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
 
-  return computeStats(deduplicated);
+  const stats = computeStats(deduplicated);
+
+  // Cache the computed stats
+  statsCache.set(cacheKey, { timestamp: now, stats });
+
+  return stats;
 }
 
 function computeStats(entries: UsageEntry[]): UsageStats {
@@ -358,7 +430,7 @@ function computeStats(entries: UsageEntry[]): UsageStats {
   hourly.sort((a, b) => a.hour - b.hour);
 
   return {
-    entries,
+    messageCount: entries.length,
     sessions,
     daily,
     hourly,

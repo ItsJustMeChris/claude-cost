@@ -53,7 +53,7 @@ export function Summary({ stats, periodLabel }: SummaryProps) {
           <Box width={18}>
             <Text color="gray">Messages</Text>
           </Box>
-          <Text color="magenta">{stats.entries.length}</Text>
+          <Text color="magenta">{stats.messageCount}</Text>
         </Box>
 
         {cacheSavings > 0 && (
@@ -115,7 +115,7 @@ export function QuickStats({ stats }: QuickStatsProps) {
 
       <Card title="All Time" borderColor="yellow" titleColor="yellow">
         <Text color="green" bold>{formatCost(stats.totalCost)}</Text>
-        <Text color="gray" dimColor> {stats.entries.length} msgs</Text>
+        <Text color="gray" dimColor> {stats.messageCount} msgs</Text>
       </Card>
     </Box>
   );

@@ -272,7 +272,7 @@ export function App() {
       {/* Footer */}
       <Box marginTop={1} justifyContent="center">
         <Text color="gray" dimColor>
-          {stats.entries.length} messages from {stats.sessions.length} sessions
+          {stats.messageCount} messages from {stats.sessions.length} sessions
         </Text>
         <Text color="gray"> • </Text>
         {loading ? (
