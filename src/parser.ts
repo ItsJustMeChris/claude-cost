@@ -158,25 +158,23 @@ export function getAllJsonlFiles(): string[] {
     return files;
   }
 
-  try {
-    const projectDirs = readdirSync(PROJECTS_DIR, { withFileTypes: true });
-
-    for (const dir of projectDirs) {
-      if (!dir.isDirectory()) continue;
-
-      const projectPath = join(PROJECTS_DIR, dir.name);
-      const jsonlFiles = readdirSync(projectPath).filter(
-        (f) => f.endsWith(".jsonl")
-      );
-
-      for (const jsonl of jsonlFiles) {
-        files.push(join(projectPath, jsonl));
+  function scanDir(dirPath: string) {
+    try {
+      const entries = readdirSync(dirPath, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = join(dirPath, entry.name);
+        if (entry.isDirectory()) {
+          scanDir(fullPath);
+        } else if (entry.name.endsWith(".jsonl")) {
+          files.push(fullPath);
+        }
       }
+    } catch {
+      // Skip unreadable directories
     }
-  } catch {
-    // Return empty if can't read
   }
 
+  scanDir(PROJECTS_DIR);
   return files;
 }
 
