@@ -1,6 +1,6 @@
 {
   "name": "claude-cost",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Beautiful TUI for Claude Code cost analytics",
   "type": "module",
   "main": "dist/index.js",
