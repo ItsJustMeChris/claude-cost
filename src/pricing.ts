@@ -11,6 +11,20 @@ export interface ModelPricing {
 // Prices from LiteLLM (converted from per-token to per-million)
 // e.g., 5e-06 per token = $5 per million tokens
 export const MODEL_PRICING: Record<string, ModelPricing> = {
+  // Claude Opus 4.6 - $5/$25 with caching
+  "claude-opus-4-6": {
+    input: 5,
+    output: 25,
+    cacheWrite: 6.25,
+    cacheRead: 0.5,
+  },
+  // Claude Opus 4.6 Fast - $30/$150 with caching
+  "fast/claude-opus-4-6": {
+    input: 30,
+    output: 150,
+    cacheWrite: 6.25,
+    cacheRead: 0.5,
+  },
   // Claude Opus 4.5 - $5/$25 with caching
   "claude-opus-4-5-20251101": {
     input: 5,
@@ -127,6 +141,19 @@ export function getPricing(model: string): ModelPricing {
   }
 
   // Infer from model name
+  // Check for fast prefix first
+  if (modelLower.startsWith("fast/")) {
+    const baseModel = model.slice(5); // strip "fast/"
+    const basePricing = MODEL_PRICING["fast/" + baseModel.toLowerCase()];
+    if (basePricing) return basePricing;
+    // Try to match fast opus-4-6 variants
+    if (modelLower.includes("opus-4-6") || modelLower.includes("opus-4.6") || modelLower.includes("opus4.6")) {
+      return MODEL_PRICING["fast/claude-opus-4-6"]!;
+    }
+  }
+  if (modelLower.includes("opus-4-6") || modelLower.includes("opus-4.6") || modelLower.includes("opus4.6")) {
+    return MODEL_PRICING["claude-opus-4-6"]!;
+  }
   if (modelLower.includes("opus-4-5") || modelLower.includes("opus-4.5") || modelLower.includes("opus4.5")) {
     return MODEL_PRICING["claude-opus-4-5-20251101"]!;
   }
@@ -178,6 +205,8 @@ export function calculateCost(
 export function getModelDisplayName(model: string): string {
   const modelLower = model.toLowerCase();
 
+  if (modelLower.startsWith("fast/") && (modelLower.includes("opus-4-6") || modelLower.includes("opus-4.6"))) return "Opus 4.6 Fast";
+  if (modelLower.includes("opus-4-6") || modelLower.includes("opus-4.6")) return "Opus 4.6";
   if (modelLower.includes("opus-4-5") || modelLower.includes("opus-4.5")) return "Opus 4.5";
   if (modelLower.includes("sonnet-4-5") || modelLower.includes("sonnet-4.5")) return "Sonnet 4.5";
   if (modelLower.includes("haiku-4-5") || modelLower.includes("haiku-4.5")) return "Haiku 4.5";
